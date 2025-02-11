@@ -1,0 +1,116 @@
+using System.Linq;
+using _Game.Characters.Scripts;
+using _Game.Common;
+using _Game.DI;
+using _GAME.Dialogue.Scripts;
+using _GAME.Input.Scripts;
+using _GAME.Tips.Scripts;
+using _GAME.Trade.Scripts;
+using _GAME.UI;
+using UnityEngine;
+using Random = UnityEngine.Random;
+using TradeFeature = _GAME.Trade.Scripts.TradeFeature;
+using System.Collections;
+
+    namespace _Game.Trade.Scripts
+{
+
+ [DefaultExecutionOrder(1)]
+public class TradeMinigametest : MonoBehaviour
+{
+
+    public float playerSpeed = 5f;
+    public int playerHealth = 3;
+    private bool isGameOver = false;
+
+    public GameObject enemyPrefab;
+    public float spawnRate = 2f;
+    public float fallSpeed = 5f;
+
+
+    private GameObject player;
+   
+
+        private void OnEnable()
+        {
+            _trade.IsMinigame.OnChanged += ShowHideView;
+            _currencies.OnUsableEloquenceIncrease += SetZone;
+            _currencies.OnUsableEloquenceDecrease += SetZone;
+            _trade.tradeMinigameViewRefs.startButton.onClick.AddListener(StartMinigame);
+            _trade.tradeMinigameViewRefs.touchButton.onClick.AddListener(Touch);
+            _trade.tradeMinigameViewRefs.backButton.onClick.AddListener(Back);
+           
+        }
+
+        private void OnDisable()
+        {
+            _trade.IsMinigame.OnChanged -= ShowHideView;
+            _currencies.OnUsableEloquenceIncrease -= SetZone;
+            _currencies.OnUsableEloquenceDecrease -= SetZone;
+            _trade.tradeMinigameViewRefs.startButton.onClick.RemoveAllListeners();
+            _trade.tradeMinigameViewRefs.touchButton.onClick.RemoveAllListeners();
+          
+        }
+
+        void Start()
+    {
+        player = GameObject.FindGameObjectWithTag("Player");
+        StartCoroutine(SpawnEnemies());
+    }
+
+    void Update()
+    {
+        if (isGameOver) return;
+        float horizontalInput = Input.GetAxis("Horizontal");
+        float verticalInput = Input.GetAxis("Vertical");
+
+        Vector3 movement = new Vector3(horizontalInput, verticalInput, 0);
+        player.transform.position += movement * playerSpeed * Time.deltaTime;
+
+
+        Vector3 viewportPosition = mainCamera.WorldToViewportPoint(player.transform.position);
+        viewportPosition.x = Mathf.Clamp(viewportPosition.x, 0.1f, 0.9f);
+        viewportPosition.y = Mathf.Clamp(viewportPosition.y, 0.1f, 0.9f);
+        player.transform.position = mainCamera.ViewportToWorldPoint(viewportPosition);
+    }
+
+        IEnumerator MyCoroutine()
+        {
+            while (!isGameOver)
+            {
+                //рандом спавн врагов
+                float randomX = Random.Range(-mainCamera.aspect * mainCamera.orthographicSize + 0.5f,
+                                             mainCamera.aspect * mainCamera.orthographicSize - 0.5f);
+                Instantiate(enemyPrefab, new Vector3(randomX, mainCamera.orthographicSize, 0), Quaternion.identity);
+
+                yield return new WaitForSeconds(spawnRate);
+            }
+        }
+
+
+    void OnTriggerEnter2D(Collider2D other)
+    {
+        if (other.CompareTag("Enemy") && !isGameOver)
+        {
+            // здоровье
+            playerHealth--;
+            Debug.Log($"Player Health: {playerHealth}");
+            //допустим
+            Destroy(other.gameObject);
+            if (playerHealth <= 0)
+            {
+                GameOver();
+            }
+        }
+    }
+
+    void GameOver()
+    {
+        isGameOver = true;
+        Debug.Log("Game Over!");
+
+        StopAllCoroutines();
+    }
+}
+}
+
